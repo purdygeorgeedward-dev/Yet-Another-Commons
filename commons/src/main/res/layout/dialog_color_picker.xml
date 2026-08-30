@@ -159,5 +159,56 @@
                 android:layout_toEndOf="@+id/color_picker_arrow"
                 android:background="@android:color/white" />
         </RelativeLayout>
+
+        <LinearLayout
+            android:id="@+id/color_picker_sliders_holder"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/color_picker_bottom_holder"
+            android:layout_marginHorizontal="@dimen/activity_margin"
+            android:orientation="vertical">
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/color_picker_hue_slider_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/hue"
+                android:textSize="@dimen/smaller_text_size" />
+
+            <SeekBar
+                android:id="@+id/color_picker_hue_slider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="360" />
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/color_picker_saturation_slider_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/medium_margin"
+                android:text="@string/saturation"
+                android:textSize="@dimen/smaller_text_size" />
+
+            <SeekBar
+                android:id="@+id/color_picker_saturation_slider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100" />
+
+            <org.fossify.commons.views.MyTextView
+                android:id="@+id/color_picker_brightness_slider_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/medium_margin"
+                android:text="@string/brightness"
+                android:textSize="@dimen/smaller_text_size" />
+
+            <SeekBar
+                android:id="@+id/color_picker_brightness_slider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100" />
+
+        </LinearLayout>
     </RelativeLayout>
 </ScrollView>

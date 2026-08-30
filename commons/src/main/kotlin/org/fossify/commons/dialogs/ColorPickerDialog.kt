@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.SeekBar
 import androidx.annotation.ColorInt
 import androidx.appcompat.app.AlertDialog
 import androidx.compose.foundation.layout.*
@@ -274,6 +275,7 @@ private fun DialogColorPickerBinding.init(
     }
     colorPickerNewHex.setText(hexCode)
     setupRecentColors(backgroundColor, recentColors)
+    syncSlidersToHsv(hsv)
 
     colorPickerHue.setOnTouchListener(OnTouchListener { v, event ->
         if (event.action == MotionEvent.ACTION_DOWN) {
@@ -295,6 +297,7 @@ private fun DialogColorPickerBinding.init(
             hsv.setHue(hue)
             updateHue(hsv, backgroundColor, currentColorCallback)
             colorPickerNewHex.setText(getHexCode(hsv.getColor()))
+            syncSlidersToHsv(hsv)
 
             if (event.action == MotionEvent.ACTION_UP) {
                 isHueBeingDragged = false
@@ -324,6 +327,7 @@ private fun DialogColorPickerBinding.init(
             moveColorPicker(hsv)
             colorPickerNewColor.setFillWithStroke(hsv.getColor(), backgroundColor)
             colorPickerNewHex.setText(getHexCode(hsv.getColor()))
+            syncSlidersToHsv(hsv)
             return@OnTouchListener true
         }
         false
@@ -336,15 +340,76 @@ private fun DialogColorPickerBinding.init(
                 Color.colorToHSV(newColor, hsv.value)
                 updateHue(hsv, backgroundColor, currentColorCallback)
                 moveColorPicker(hsv)
+                syncSlidersToHsv(hsv)
             } catch (ignored: Exception) {
             }
         }
     }
 
+    val sliderListener = { isHue: Boolean, isSaturation: Boolean ->
+        object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (!fromUser) {
+                    return
+                }
+
+                when {
+                    isHue -> {
+                        hsv.setHue(progress.toFloat())
+                        updateHue(hsv, backgroundColor, currentColorCallback)
+                    }
+
+                    isSaturation -> {
+                        hsv.setSat(progress / 100f)
+                        moveColorPicker(hsv)
+                        colorPickerNewColor.setFillWithStroke(hsv.getColor(), backgroundColor)
+                    }
+
+                    else -> {
+                        hsv.setVal(progress / 100f)
+                        moveColorPicker(hsv)
+                        colorPickerNewColor.setFillWithStroke(hsv.getColor(), backgroundColor)
+                    }
+                }
+
+                colorPickerNewHex.setText(getHexCode(hsv.getColor()))
+            }
+
+            override fun onStartTrackingTouch(bar: SeekBar?) {
+                if (isHue) {
+                    isHueBeingDragged = true
+                }
+            }
+
+            override fun onStopTrackingTouch(bar: SeekBar?) {
+                if (isHue) {
+                    isHueBeingDragged = false
+                }
+            }
+        }
+    }
+
+    colorPickerHueSlider.setOnSeekBarChangeListener(sliderListener(true, false))
+    colorPickerSaturationSlider.setOnSeekBarChangeListener(sliderListener(false, true))
+    colorPickerBrightnessSlider.setOnSeekBarChangeListener(sliderListener(false, false))
+
     root.onGlobalLayout {
         moveHuePicker(hsv)
         moveColorPicker(hsv)
     }
+}
+
+/**
+ * Keeps the three HSB sliders in sync whenever the color changes via any
+ * other input (the saturation/brightness square, the hue strip, or typing
+ * a hex code directly) - uses SeekBar.setProgress(), which does not fire
+ * onProgressChanged with fromUser=true, so this can't create a feedback
+ * loop with the sliders' own listeners.
+ */
+private fun DialogColorPickerBinding.syncSlidersToHsv(hsv: Hsv) {
+    colorPickerHueSlider.progress = hsv.getHue().toInt()
+    colorPickerSaturationSlider.progress = (hsv.getSat() * 100).toInt()
+    colorPickerBrightnessSlider.progress = (hsv.getVal() * 100).toInt()
 }
 
 private fun DialogColorPickerBinding.setupRecentColors(backgroundColor: Int, recentColors: List<Int>) {
