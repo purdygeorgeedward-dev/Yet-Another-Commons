@@ -130,6 +130,26 @@ fun Int.lightenColor(factor: Int = 8): Int {
     return Color.HSVToColor(hsv)
 }
 
+/**
+ * Rotates a color's hue by the given number of degrees (0-360), leaving
+ * saturation and value untouched. Extracted from identical private
+ * implementations independently built in Yet-Another-Messages-App's
+ * gel bubble hue shift and Yet-Another-Contacts' gel avatar hue shift -
+ * both apps used this exact logic for the same purpose (a "shift the
+ * overall vibe of an already-gel-styled color" control), so it belongs
+ * here once rather than duplicated per app.
+ */
+fun Int.rotateHue(degrees: Int): Int {
+    if (degrees == 0) {
+        return this
+    }
+
+    val hsv = FloatArray(3)
+    Color.colorToHSV(this, hsv)
+    hsv[0] = (hsv[0] + degrees).mod(360f)
+    return Color.HSVToColor(Color.alpha(this), hsv)
+}
+
 private fun hsl2hsv(hsl: FloatArray): FloatArray {
     val hue = hsl[0]
     var sat = hsl[1]
