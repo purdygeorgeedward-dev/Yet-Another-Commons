@@ -5,6 +5,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -13,7 +14,9 @@ import androidx.compose.ui.text.font.Typeface
 import org.fossify.commons.compose.extensions.config
 import org.fossify.commons.compose.theme.model.Theme
 import org.fossify.commons.compose.theme.model.Theme.Companion.systemDefaultMaterialYou
+import org.fossify.commons.extensions.darkenColor
 import org.fossify.commons.extensions.getContrastColor
+import org.fossify.commons.extensions.lightenColor
 import org.fossify.commons.helpers.FONT_TYPE_CUSTOM
 import org.fossify.commons.helpers.FONT_TYPE_MONOSPACE
 import org.fossify.commons.helpers.FontHelper
@@ -33,50 +36,61 @@ internal fun Theme(
     val colorScheme = if (!view.isInEditMode) {
         when {
             theme is Theme.SystemDefaultMaterialYou && isSPlus() -> {
-                if (isSystemInDarkTheme) {
+                val dynamic = if (isSystemInDarkTheme) {
                     dynamicDarkColorScheme(context)
                 } else {
                     dynamicLightColorScheme(context)
                 }
+                harmonizeSecondaryAndTertiary(dynamic)
             }
 
-            theme is Theme.Custom && theme.backgroundColor.isLitWell() -> lightColorScheme(
-                primary = theme.primaryColor,
-                onPrimary = Color(theme.primaryColorInt.getContrastColor()),
-                surface = theme.backgroundColor,
-                onSurface = theme.textColor,
-                surfaceVariant = theme.backgroundColor
+            theme is Theme.Custom && theme.backgroundColor.isLitWell() -> harmonizeSecondaryAndTertiary(
+                lightColorScheme(
+                    primary = theme.primaryColor,
+                    onPrimary = Color(theme.primaryColorInt.getContrastColor()),
+                    surface = theme.backgroundColor,
+                    onSurface = theme.textColor,
+                    surfaceVariant = theme.backgroundColor
+                )
             )
 
-            theme is Theme.Custom -> darkColorScheme(
-                primary = theme.primaryColor,
-                onPrimary = Color(theme.primaryColorInt.getContrastColor()),
-                surface = theme.backgroundColor,
-                onSurface = theme.textColor,
-                surfaceVariant = theme.backgroundColor
+            theme is Theme.Custom -> harmonizeSecondaryAndTertiary(
+                darkColorScheme(
+                    primary = theme.primaryColor,
+                    onPrimary = Color(theme.primaryColorInt.getContrastColor()),
+                    surface = theme.backgroundColor,
+                    onSurface = theme.textColor,
+                    surfaceVariant = theme.backgroundColor
+                )
             )
 
-            theme is Theme.Dark -> darkColorScheme(
-                primary = theme.primaryColor,
-                onPrimary = Color(theme.primaryColorInt.getContrastColor()),
-                surface = theme.backgroundColor,
-                onSurface = theme.textColor
+            theme is Theme.Dark -> harmonizeSecondaryAndTertiary(
+                darkColorScheme(
+                    primary = theme.primaryColor,
+                    onPrimary = Color(theme.primaryColorInt.getContrastColor()),
+                    surface = theme.backgroundColor,
+                    onSurface = theme.textColor
+                )
             )
 
-            theme is Theme.White -> lightColorScheme(
-                primary = Color(theme.accentColor),
-                onPrimary = Color(theme.accentColor.getContrastColor()),
-                surface = theme.backgroundColor,
-                tertiary = theme.primaryColor,
-                onSurface = theme.textColor
+            theme is Theme.White -> harmonizeSecondaryOnly(
+                lightColorScheme(
+                    primary = Color(theme.accentColor),
+                    onPrimary = Color(theme.accentColor.getContrastColor()),
+                    surface = theme.backgroundColor,
+                    tertiary = theme.primaryColor,
+                    onSurface = theme.textColor
+                )
             )
 
-            theme is Theme.BlackAndWhite -> darkColorScheme(
-                primary = Color(theme.accentColor),
-                onPrimary = Color(theme.accentColor.getContrastColor()),
-                surface = theme.backgroundColor,
-                tertiary = theme.primaryColor,
-                onSurface = theme.textColor
+            theme is Theme.BlackAndWhite -> harmonizeSecondaryOnly(
+                darkColorScheme(
+                    primary = Color(theme.accentColor),
+                    onPrimary = Color(theme.accentColor.getContrastColor()),
+                    surface = theme.backgroundColor,
+                    tertiary = theme.primaryColor,
+                    onSurface = theme.textColor
+                )
             )
 
             else -> darkColorScheme
@@ -110,6 +124,65 @@ internal fun Theme(
                 content()
             }
         },
+    )
+}
+
+/**
+ * SystemDefaultMaterialYou (Android's own dynamicLightColorScheme/
+ * dynamicDarkColorScheme, derived from the device wallpaper - the default
+ * appearance on Android 12+, since isSystemThemeEnabled defaults to
+ * isSPlus()), Custom, and Dark all leave secondary/tertiary unset, falling
+ * back to Material3's generic baseline tones - which have no relationship
+ * to whatever primary color actually resulted, dynamic-wallpaper-derived
+ * or user-chosen. That mismatch is what produces a muted/dull primary
+ * paired with a bright, unrelated purple secondaryContainer (a common
+ * source for a tab-selected or segmented-button-selected background) -
+ * visibly clashing rather than reading as one cohesive palette.
+ *
+ * Derives secondary/tertiary as simple, predictable lighten/darken steps
+ * of the scheme's own actual primary instead, so every role stays visibly
+ * related to it regardless of what that primary turned out to be. Doesn't
+ * touch primary, surface, background, or any other role - only the two
+ * that had no relationship to primary to begin with.
+ */
+private fun harmonizeSecondaryAndTertiary(colorScheme: ColorScheme): ColorScheme {
+    val primaryInt = colorScheme.primary.toArgb()
+    val secondary = primaryInt.lightenColor(12)
+    val secondaryContainer = primaryInt.lightenColor(36)
+    val tertiary = primaryInt.darkenColor(10)
+    val tertiaryContainer = primaryInt.lightenColor(28)
+
+    return colorScheme.copy(
+        secondary = Color(secondary),
+        onSecondary = Color(secondary.getContrastColor()),
+        secondaryContainer = Color(secondaryContainer),
+        onSecondaryContainer = Color(secondaryContainer.getContrastColor()),
+        tertiary = Color(tertiary),
+        onTertiary = Color(tertiary.getContrastColor()),
+        tertiaryContainer = Color(tertiaryContainer),
+        onTertiaryContainer = Color(tertiaryContainer.getContrastColor()),
+    )
+}
+
+/**
+ * Same reasoning as harmonizeSecondaryAndTertiary, but for White/
+ * BlackAndWhite specifically, which already deliberately set
+ * tertiary = theme.primaryColor (a distinct, meaningful choice - their
+ * "primary" role is actually theme.accentColor, with the app's normal
+ * primary color repurposed as tertiary instead). Only secondary is left
+ * unset in those two, so only secondary gets harmonized here - tertiary
+ * is left exactly as those branches already set it.
+ */
+private fun harmonizeSecondaryOnly(colorScheme: ColorScheme): ColorScheme {
+    val primaryInt = colorScheme.primary.toArgb()
+    val secondary = primaryInt.lightenColor(12)
+    val secondaryContainer = primaryInt.lightenColor(36)
+
+    return colorScheme.copy(
+        secondary = Color(secondary),
+        onSecondary = Color(secondary.getContrastColor()),
+        secondaryContainer = Color(secondaryContainer),
+        onSecondaryContainer = Color(secondaryContainer.getContrastColor()),
     )
 }
 
